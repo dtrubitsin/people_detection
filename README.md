@@ -13,3 +13,5 @@
 - coco_names.py Список имен классов COCO
 - requirements.txt
 - README.md
+- input/crowd.mp4 Исходное видео
+- outputs/crowd_processed.mp4 Обработанное видео с обнаруженными объектами
