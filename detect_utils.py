@@ -4,6 +4,10 @@ import numpy as np
 
 from coco_names import COCO_INSTANCE_CATEGORY_NAMES as coco_names
 
+
+# Цвет для отрисовки границ объектов
+COLOR = [255, 0, 0]  # Красный
+
 # Создаем транформацию объекта в вектор
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -17,8 +21,19 @@ def predict(image, model, device, detection_threshold):
     Модель получает на вход кадр. Выходом модели являются классы, обнаруженные 
     в кадре, уровень уверенности в данном классе и границы объектов, найденных в кадре.
     Затем оставляются только предсказания для класса "человек" соответствующие заданному
-    порогу.
-    Функция возвращает границы обектов, классы и уровень уверенности.
+    порогу. Функция возвращает границы обектов, классы и уровень уверенности.
+
+    Args:
+        image (numpy.ndarray): Входной кадр в формате numpy array.
+        model (torch.nn.Module): Предобученная модель для предсказаний.
+        device (torch.device): Устройство (CPU или CUDA), на котором выполняется предсказание.
+        detection_threshold (float): Порог уверенности для отбора предсказаний.
+
+    Returns:
+        tuple: Кортеж, содержащий три элемента:
+            - boxes (numpy.ndarray): Границы обнаруженных объектов.
+            - classes (list of str): Классы обнаруженных объектов.
+            - scores (numpy.ndarray): Уровень уверенности для обнаруженных объектов.
     '''
 
     # Переводим кадр в вектор и переносим на устройство
@@ -61,21 +76,29 @@ def draw_boxes(boxes, classes, scores, image):
     также подписывается класс и уровень уверенности в нем.
 
     На выходе функции получается кадр с отрисованными отъектами.
+
+    Args:
+        boxes (numpy.ndarray): Границы обнаруженных объектов.
+        classes (list of str): Классы обнаруженных объектов.
+        scores (numpy.ndarray): Уровень уверенности для обнаруженных объектов.
+        image (numpy.ndarray): Входной кадр в формате numpy array.
+
+    Returns:
+        numpy.ndarray: Кадр с отрисованными объектами.
     '''
     # Преобразование RGB в BGR цветовое пространство для правильной работы
     image = cv2.cvtColor(np.asarray(image), cv2.COLOR_BGR2RGB)
     # Для каждой коробки
     for i, box in enumerate(boxes):
-        color = [255, 0, 0]  # Красный
         # Отображение границы
         cv2.rectangle(
             image,
             (int(box[0]), int(box[1])),
             (int(box[2]), int(box[3])),
-            color, 1
+            COLOR, 1
         )
         # Надпись
         cv2.putText(image, f'{classes[i]}: {scores[i]:.2f}', (int(box[0]), int(box[1]-5)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2,
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR, 2,
                     lineType=cv2.LINE_AA)
     return image

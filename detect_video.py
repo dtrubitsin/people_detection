@@ -3,84 +3,109 @@ from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn, Fast
 import cv2
 
 import time
+from loguru import logger
 from IPython.display import clear_output
+
 
 import detect_utils
 
 
-# Выбор устройства
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+def main():
+    '''    Функция реализует детекцию людей на видео.
 
-# Загрузка  предобученной модели
-model = fasterrcnn_mobilenet_v3_large_fpn(
-    weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT)
+    Эта функция загружает предобученную модель Faster R-CNN, покадрово обрабатывает видо,
+    обнаруживает людей в каждом кадре, отрисовывает их границы в виде прямоугольников, и сохраняет
+    полученный результат в выходной файл. Она также подсчитывает среднее количество кадров в 
+    секунду (FPS), обрабатываемых моделью. Что позволяет оценить скорость работы.
 
-# Перевод модели в режим предсказания и перенос на устройство
-model = model.eval().to(device)
+    Args:
+        None
 
-# Указать путь к видеофайлу здесь
-video_path = 'input/crowd_1.mp4'
+    Returns:
+        None
+    '''
 
-# Захват видео
-cap = cv2.VideoCapture(video_path)
+    # Выбор устройства
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-if (cap.isOpened() == False):
-    print('Ошибка в чтении видео. Проверьте путь')
+    logger.info(f'Имя устройства: {device}')
+    logger.info(f'Загрузка модели')
+    # Загрузка  предобученной модели
+    model = fasterrcnn_mobilenet_v3_large_fpn(
+        weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT)
 
-# Ширина и высота кадра
-frame_width = int(cap.get(3))
-frame_height = int(cap.get(4))
+    # Перевод модели в режим предсказания и перенос на устройство
+    model = model.eval().to(device)
 
-# Создание объекта для сохранения видео
-out = cv2.VideoWriter('/outputs/crowd_processed.mp4',
-                      cv2.VideoWriter_fourcc(*'mp4v'), 30,
-                      (frame_width, frame_height))
+    # Указать путь к видеофайлу здесь
+    video_path = 'input/crowd_1.mp4'
 
-frame_count = 0  # Подсчет общего количества кадров
-total_fps = 0  # Подсчет итогового FPS
+    # Захват видео
+    cap = cv2.VideoCapture(video_path)
 
-# Пока видео не закончилось
-while (cap.isOpened()):
-    # Захватываем каждый кадр из видео
-    ret, frame = cap.read()
-    if ret == True:
-        # Записываем начальное время для подсчета скорости работы
-        start_time = time.time()
-        with torch.no_grad():
-            # Получить предсказания для текущего кадра
-            boxes, classes, scores = detect_utils.predict(
-                frame, model, device, 0.7)
+    if (cap.isOpened() == False):
+        print('Ошибка в чтении видео. Проверьте путь')
 
-        # Отрисовка границ объектов и предсказаний
-        image = detect_utils.draw_boxes(boxes, classes, scores, frame)
+    # Ширина и высота кадра
+    frame_width = int(cap.get(3))
+    frame_height = int(cap.get(4))
 
-        # Записываем время окончания обработки кадра
-        end_time = time.time()
-        # Считаем время обработки кадра
-        fps = 1 / (end_time - start_time)
-        # Добавляем к итоговому FPS
-        total_fps += fps
-        # Обновляем счетчик кадров
-        frame_count += 1
-        clear_output(wait=True)
-        print(f"Количество кадров: {frame_count}, FPS: {fps}")
+    # Создание объекта для сохранения видео
+    out = cv2.VideoWriter('/outputs/crowd_processed.mp4',
+                          cv2.VideoWriter_fourcc(*'mp4v'), 30,
+                          (frame_width, frame_height))
 
-        # Преобразование BGR в RGB цветовое пространство для правильного отображения
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    logger.info(f'Обработка видео')
 
-        # Запись кадра в видео
-        out.write(image)
+    frame_count = 0  # Подсчет общего количества кадров
+    total_fps = 0  # Подсчет итогового FPS
 
-    else:
-        break
+    # Пока видео не закончилось
+    while (cap.isOpened()):
+        # Захватываем каждый кадр из видео
+        ret, frame = cap.read()
+        if ret == True:
+            # Записываем начальное время для подсчета скорости работы
+            start_time = time.time()
+            with torch.no_grad():
+                # Получить предсказания для текущего кадра
+                boxes, classes, scores = detect_utils.predict(
+                    frame, model, device, 0.7)
 
-# Закрытие видеопотока
-cap.release()
-# Закрытие видеофайла для правильной записи кадров
-out.release()
-# Закрытие всех кадров и окон
-cv2.destroyAllWindows()
+            # Отрисовка границ объектов и предсказаний
+            image = detect_utils.draw_boxes(boxes, classes, scores, frame)
 
-# Подсчет финального FPS
-avg_fps = total_fps / frame_count
-print(f"Средний FPS: {avg_fps:.3f}")
+            # Записываем время окончания обработки кадра
+            end_time = time.time()
+            # Считаем время обработки кадра
+            fps = 1 / (end_time - start_time)
+            # Добавляем к итоговому FPS
+            total_fps += fps
+            # Обновляем счетчик кадров
+            frame_count += 1
+            clear_output(wait=True)
+            print(f"Количество кадров: {frame_count}, FPS: {fps}")
+
+            # Преобразование BGR в RGB цветовое пространство для правильного отображения
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+            # Запись кадра в видео
+            out.write(image)
+
+        else:
+            break
+
+    # Закрытие видеопотока
+    cap.release()
+    # Закрытие видеофайла для правильной записи кадров
+    out.release()
+    # Закрытие всех кадров и окон
+    cv2.destroyAllWindows()
+
+    # Подсчет финального FPS
+    avg_fps = total_fps / frame_count
+    print(f"Средний FPS: {avg_fps:.3f}")
+
+
+if __name__ == '__main__':
+    main()
